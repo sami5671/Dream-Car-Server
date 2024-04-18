@@ -130,7 +130,14 @@ async function run() {
       const query = { CarCondition: "Brand New" };
       const result = await carCollection.find(query).toArray();
       res.send(result);
-      console.log(result);
+      // console.log(result);
+    });
+    // Get Recondition car
+    app.get("/cars/recondition", async (req, res) => {
+      const query = { CarCondition: "Used" };
+      const result = await carCollection.find(query).toArray();
+      res.send(result);
+      // console.log(result);
     });
     // Get single car data
     app.get("/car/:id", async (req, res) => {
