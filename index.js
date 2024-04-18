@@ -3,7 +3,7 @@ const app = express();
 require("dotenv").config();
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
 const port = process.env.PORT || 5000;
@@ -118,13 +118,27 @@ async function run() {
       res.send(result);
     });
 
+    // ======================Car related api===========================================
     // Get all Cars
     app.get("/cars", async (req, res) => {
       const result = await carCollection.find().toArray();
       res.send(result);
       console.log(result);
     });
-
+    // Get brand new car
+    app.get("/cars/brandNew", async (req, res) => {
+      const query = { CarCondition: "Brand New" };
+      const result = await carCollection.find(query).toArray();
+      res.send(result);
+      console.log(result);
+    });
+    // Get single car data
+    app.get("/car/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await carCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+    // =================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
