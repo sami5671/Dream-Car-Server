@@ -54,6 +54,7 @@ async function run() {
     // -----------------------------All Collections-------------------------------------------------------------------------
     const usersCollection = client.db("DreamCar").collection("users");
     const carCollection = client.db("DreamCar").collection("AllCars");
+    const favoriteCarCollection = client.db("DreamCar").collection("favorite");
 
     // --------------------------------------------------------------------------------------------------------------------
     // auth related api
@@ -145,6 +146,18 @@ async function run() {
       const result = await carCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
+
+    // post favorite car data carId and user email
+    app.post("/favoriteCar", async (req, res) => {
+      const carItem = req.body; // Get the favorite car item from the request body
+      const result = await favoriteCarCollection.insertOne(carItem);
+      res.send(result);
+    });
+    app.get("/favoriteCar", async (req, res) => {
+      const result = await favoriteCarCollection.find().toArray();
+      res.send(result);
+    });
+
     // =================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
