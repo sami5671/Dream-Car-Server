@@ -153,8 +153,10 @@ async function run() {
       const result = await favoriteCarCollection.insertOne(carItem);
       res.send(result);
     });
-    app.get("/favoriteCar", async (req, res) => {
-      const result = await favoriteCarCollection.find().toArray();
+    app.get("/favorite/:email", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await favoriteCarCollection.find(query).toArray();
       res.send(result);
     });
 
