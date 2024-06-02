@@ -147,13 +147,13 @@ async function run() {
       res.send(result);
     });
 
-    // post favorite car data carId and user email
+    // post favorite car data and user email
     app.post("/favoriteCar", async (req, res) => {
       const carItem = req.body; // Get the favorite car item from the request body
       const result = await favoriteCarCollection.insertOne(carItem);
       res.send(result);
     });
-    app.get("/favorite/:email", async (req, res) => {
+    app.get("/userFavoriteCar", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await favoriteCarCollection.find(query).toArray();
