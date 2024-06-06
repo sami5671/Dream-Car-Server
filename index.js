@@ -153,11 +153,44 @@ async function run() {
       const result = await favoriteCarCollection.insertOne(carItem);
       res.send(result);
     });
+    // get user favorite car data by user email
     app.get("/userFavoriteCar", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await favoriteCarCollection.find(query).toArray();
       res.send(result);
+    });
+    // delete user favorite car data
+    app.delete("/userFavoriteCar/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await favoriteCarCollection.deleteOne(query);
+      res.send(result);
+    });
+    // delete user all favorite car
+    // app.delete("/deleteFavoriteCars", async (req, res) => {
+    //   const { carIds } = req.body;
+    //   const result = await favoriteCarCollection.deleteMany({
+    //     _id: { $in: carIds },
+    //   });
+    //   res.send(result);
+    // });
+    app.delete("/deleteFavoriteCars", async (req, res) => {
+      const { carIds } = req.body;
+
+      // Ensure carIds is an array
+      if (!Array.isArray(carIds)) {
+        return res.status(400).send({ error: "carIds must be an array" });
+      }
+
+      try {
+        const result = await favoriteCarCollection.deleteMany({
+          _id: { $in: carIds.map((id) => new ObjectId(id)) }, // Convert ids to ObjectId if necessary
+        });
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
     });
 
     // =================================================================
