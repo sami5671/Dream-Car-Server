@@ -193,6 +193,13 @@ async function run() {
       }
     });
 
+    // ========================= Moderator API========================================
+    app.post("/addCar", async (req, res) => {
+      const carItem = req.body;
+      const result = await carCollection.insertOne(carItem);
+      res.send(result);
+    });
+
     // =================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
