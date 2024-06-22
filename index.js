@@ -8,8 +8,9 @@ const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
 const port = process.env.PORT || 5000;
 
-// -------------------middleware----------------------------------------------------------------
+// ------------------- middleware ----------------------------------------------------------------
 const corsOptions = {
+  // origin: ["https://dream-car-68b89.web.app"],
   origin: ["http://localhost:5173", "http://localhost:5174"],
   credentials: true,
   optionSuccessStatus: 200,
@@ -48,6 +49,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 // ------------------------------------------------------------------------------------------------
 async function run() {
   try {
@@ -146,7 +148,6 @@ async function run() {
       const result = await carCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
-
     // post favorite car data and user email
     app.post("/favoriteCar", async (req, res) => {
       const carItem = req.body; // Get the favorite car item from the request body
@@ -167,22 +168,12 @@ async function run() {
       const result = await favoriteCarCollection.deleteOne(query);
       res.send(result);
     });
-    // delete user all favorite car
-    // app.delete("/deleteFavoriteCars", async (req, res) => {
-    //   const { carIds } = req.body;
-    //   const result = await favoriteCarCollection.deleteMany({
-    //     _id: { $in: carIds },
-    //   });
-    //   res.send(result);
-    // });
     app.delete("/deleteFavoriteCars", async (req, res) => {
       const { carIds } = req.body;
-
       // Ensure carIds is an array
       if (!Array.isArray(carIds)) {
         return res.status(400).send({ error: "carIds must be an array" });
       }
-
       try {
         const result = await favoriteCarCollection.deleteMany({
           _id: { $in: carIds.map((id) => new ObjectId(id)) }, // Convert ids to ObjectId if necessary
@@ -199,7 +190,47 @@ async function run() {
       const result = await carCollection.insertOne(carItem);
       res.send(result);
     });
+    app.patch("/updateCar/:id", async (req, res) => {
+      const { id } = req.params;
+      const item = req.body;
 
+      console.log(item); // Debug: log the request body to verify data
+
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          CarModel: item.CarModel,
+          CarCondition: item.CarCondition,
+          Category: item.Category,
+          TopSpeed: item.TopSpeed,
+          FuelType: item.FuelType,
+          FuelCapacity: item.FuelCapacity,
+          Mileage: item.Mileage,
+          Engine: item.Engine,
+          CarPriceNew: item.CarPriceNew,
+          CarPricePrevious: item.CarPricePrevious,
+          ExteriorColor: item.ExteriorColor,
+          InteriorColor: item.InteriorColor,
+          Drivetrain: item.Drivetrain,
+          Transmission: item.Transmission,
+          Seating: item.Seating,
+        },
+      };
+
+      try {
+        const result = await carCollection.updateOne(filter, updateDoc);
+        res.send(result);
+      } catch (error) {
+        console.error(error); // Debug: log any errors during the update
+        res.status(500).send({ message: "Update failed", error });
+      }
+    });
+    app.delete("/deleteCar/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await carCollection.deleteOne(query);
+      res.send(result);
+    });
     // =================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
