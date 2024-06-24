@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // ------------------- middleware ----------------------------------------------------------------
@@ -57,6 +58,7 @@ async function run() {
     const usersCollection = client.db("DreamCar").collection("users");
     const carCollection = client.db("DreamCar").collection("AllCars");
     const favoriteCarCollection = client.db("DreamCar").collection("favorite");
+    const carSoldCollection = client.db("DreamCar").collection("CarSold");
 
     // --------------------------------------------------------------------------------------------------------------------
     // auth related api
@@ -229,6 +231,28 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await carCollection.deleteOne(query);
+      res.send(result);
+    });
+    // =================================================================
+
+    // =========================Payment related api========================================
+    // Generate client secret for stripe payment
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      if (!price || amount < 1) return;
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({ clientSecret: client_secret });
+    });
+
+    //save bought cars info to the database
+    app.post("/soldCars", async (req, res) => {
+      const soldCar = req.body;
+      const result = await carSoldCollection.insertOne(soldCar);
       res.send(result);
     });
     // =================================================================
