@@ -233,6 +233,15 @@ async function run() {
       const result = await carCollection.deleteOne(query);
       res.send(result);
     });
+    app.get("/soldCars", async (req, res) => {
+      const result = await carSoldCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/orderDetail/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await carSoldCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
     // =================================================================
 
     // =========================Payment related api========================================
@@ -255,6 +264,7 @@ async function run() {
       const result = await carSoldCollection.insertOne(soldCar);
       res.send(result);
     });
+
     // =================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
