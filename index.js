@@ -54,11 +54,14 @@ const client = new MongoClient(uri, {
 // ------------------------------------------------------------------------------------------------
 async function run() {
   try {
-    // -----------------------------All Collections-------------------------------------------------------------------------
+    // -----------------------------All Collections-----------------------------------------------------------------------
     const usersCollection = client.db("DreamCar").collection("users");
     const carCollection = client.db("DreamCar").collection("AllCars");
     const favoriteCarCollection = client.db("DreamCar").collection("favorite");
     const carSoldCollection = client.db("DreamCar").collection("CarSold");
+    const secondHandCarCollection = client
+      .db("DreamCar")
+      .collection("SecondHandCar");
 
     // --------------------------------------------------------------------------------------------------------------------
     // auth related api
@@ -121,6 +124,28 @@ async function run() {
         options
       );
       res.send(result);
+    });
+    app.get("/users/admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let admin = false;
+
+      if (user) {
+        admin = user?.role == "admin";
+      }
+      res.send({ admin });
+    });
+    app.get("/users/moderator/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      let moderator = false;
+
+      if (user) {
+        moderator = user?.role == "moderator";
+      }
+      res.send({ moderator });
     });
 
     // ======================Car related api===========================================
@@ -187,6 +212,7 @@ async function run() {
     });
 
     // ========================= Moderator API========================================
+
     app.post("/addCar", async (req, res) => {
       const carItem = req.body;
       const result = await carCollection.insertOne(carItem);
@@ -242,8 +268,67 @@ async function run() {
       const result = await carSoldCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
-    // =================================================================
+    app.patch("/orderStatus/:id", async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
 
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await carSoldCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    // =========================== User API ======================================
+    app.get("/soldCarByEmail", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await carSoldCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/userOrderSummary/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await carSoldCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+    app.post("/addUserCar", async (req, res) => {
+      const carItem = req.body;
+      const result = await secondHandCarCollection.insertOne(carItem);
+      res.send(result);
+    });
+    app.get("/userAddedCarByEmail", async (req, res) => {
+      const email = req.query.email;
+      const query = { "sellerData.sellerEmail": email };
+      const result = await secondHandCarCollection.find(query).toArray();
+      res.send(result);
+    });
+    // ==========================Admin APi=======================================
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+    app.patch("/updateUserRole/:id", async (req, res) => {
+      const id = req.params.id;
+      const { role } = req.body;
+      // console.log(id, role);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: role,
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    app.delete("/deleteUser/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
     // =========================Payment related api========================================
     // Generate client secret for stripe payment
     app.post("/create-payment-intent", async (req, res) => {
