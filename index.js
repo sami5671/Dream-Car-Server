@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
+const axios = require("axios");
 
 // ------------------- middleware ----------------------------------------------------------------
 const corsOptions = {
@@ -19,6 +20,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded());
 app.use(cookieParser());
 app.use(morgan("dev"));
 
@@ -63,6 +65,7 @@ async function run() {
       .db("DreamCar")
       .collection("SecondHandCar");
 
+    const SSLPayments = client.db("DreamCar").collection("SSLPayment");
     // --------------------------------------------------------------------------------------------------------------------
     // auth related api
     app.post("/jwt", async (req, res) => {
@@ -305,6 +308,57 @@ async function run() {
       const result = await secondHandCarCollection.find(query).toArray();
       res.send(result);
     });
+    app.delete("/deleteUserAddedCar/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await secondHandCarCollection.deleteOne(query);
+      res.send(result);
+    });
+    app.get("/userAddedCarUpdate/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await secondHandCarCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+    app.patch("/updateUserAddedCar/:id", async (req, res) => {
+      const { id } = req.params;
+      const item = req.body;
+
+      console.log(item); // Debug: log the request body to verify data
+
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          CarModel: item.CarModel,
+          CarCondition: item.CarCondition,
+          Category: item.Category,
+          TopSpeed: item.TopSpeed,
+          FuelType: item.FuelType,
+          FuelCapacity: item.FuelCapacity,
+          Mileage: item.Mileage,
+          Engine: item.Engine,
+          CarPriceNew: item.CarPriceNew,
+          CarPricePrevious: item.CarPricePrevious,
+          ExteriorColor: item.ExteriorColor,
+          InteriorColor: item.InteriorColor,
+          Drivetrain: item.Drivetrain,
+          Transmission: item.Transmission,
+          Seating: item.Seating,
+        },
+      };
+
+      try {
+        const result = await secondHandCarCollection.updateOne(
+          filter,
+          updateDoc
+        );
+        res.send(result);
+      } catch (error) {
+        console.error(error); // Debug: log any errors during the update
+        res.status(500).send({ message: "Update failed", error });
+      }
+    });
     // ==========================Admin APi=======================================
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -329,7 +383,24 @@ async function run() {
       const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
-    // =========================Payment related api========================================
+    app.get("/allUserAddedCar", async (req, res) => {
+      const result = await secondHandCarCollection.find().toArray();
+      res.send(result);
+    });
+    app.patch("/updateUserCarStatus/:id", async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+      console.log(id, status);
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          CarStatus: status,
+        },
+      };
+      const result = await secondHandCarCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    // =========================Payment related api (Stripe Payment)========================================
     // Generate client secret for stripe payment
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
@@ -342,15 +413,115 @@ async function run() {
       });
       res.send({ clientSecret: client_secret });
     });
-
     //save bought cars info to the database
     app.post("/soldCars", async (req, res) => {
       const soldCar = req.body;
       const result = await carSoldCollection.insertOne(soldCar);
       res.send(result);
     });
-
     // =================================================================
+
+    // =========================Payment related api ( SSL Commerce Payment)========================================
+
+    app.post("/create-payment", async (req, res) => {
+      const paymentInfo = req.body;
+      const trxId = new ObjectId().toString();
+
+      const initiateData = {
+        store_id: "dream6690c55671a8c",
+        store_passwd: "dream6690c55671a8c@ssl",
+        total_amount: paymentInfo.amount,
+        currency: "BDT",
+        tran_id: trxId,
+        success_url: "http://localhost:5000/success-payment",
+        fail_url: "http://localhost:5000/fail",
+        cancel_url: "http://localhost:5000/cancel",
+        cus_name: "Customer Name",
+        cus_email: "cust@yahoo.com",
+        cus_add1: "Dhaka",
+        cus_add2: "Dhaka",
+        cus_city: "Dhaka",
+        cus_state: "Dhaka",
+        cus_postcode: "1000",
+        cus_country: "Bangladesh",
+        cus_phone: "01711111111",
+        cus_fax: "01711111111",
+        shipping_method: "NO",
+        product_name: "Car",
+        product_category: "Car",
+        product_profile: "general",
+        // ship_name: "Customer Name",
+        // ship_add1: "Dhaka",
+        // ship_add2: "Dhaka",
+        // ship_city: "Dhaka",
+        // ship_state: "Dhaka",
+        // ship_postcode: "1000",
+        // ship_country: "Bangladesh",
+        multi_card_name: "mastercard,visacard,amexcard",
+        value_a: "ref001_A",
+        value_b: "ref002_B",
+        value_c: "ref003_C",
+        value_d: "ref004_D",
+      };
+
+      const response = await axios({
+        method: "POST",
+        url: "https://sandbox.sslcommerz.com/gwprocess/v4/api.php",
+        data: initiateData,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+
+      const saveData = {
+        cus_name: "Dummy",
+        paymentId: trxId,
+        amount: paymentInfo.amount,
+        status: "Pending",
+      };
+      const save = await SSLPayments.insertOne(saveData);
+
+      console.log(response);
+
+      if (save) {
+        res.send({
+          paymentUrl: response.data.GatewayPageURL,
+        });
+      }
+    });
+
+    app.post("/success-payment", async (req, res) => {
+      const successData = req.body;
+      if (successData.status !== "VALID") {
+        throw new Error("Unauthorized Payment");
+      }
+
+      // update the database
+      const query = {
+        paymentId: successData.tran_id,
+      };
+      const update = {
+        $set: {
+          status: "Success",
+        },
+      };
+
+      const updateData = await SSLPayments.updateOne(query, update);
+
+      console.log("Success Data: ", successData);
+      console.log("Update Data: ", updateData);
+
+      res.redirect("http://localhost:5173/success");
+    });
+
+    app.post("/fail", async (req, res) => {
+      res.redirect("http://localhost:5173/fail");
+    });
+
+    app.post("/cancel", async (req, res) => {
+      res.redirect("http://localhost:5173/cancel");
+    });
+    // ====================================================================================================
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
