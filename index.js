@@ -426,11 +426,21 @@ async function run() {
     app.post("/create-payment", async (req, res) => {
       const paymentInfo = req.body;
       const trxId = new ObjectId().toString();
+      const car = paymentInfo.car;
+      const customerInfo = paymentInfo.customerInfo;
+      const userData = paymentInfo.userData;
+      const email = userData.email;
+      const photo = userData.photo;
+
+      // converting carPrice into numeric value
+      let carPriceString = paymentInfo.car.CarPriceNew;
+      let numericValue = carPriceString.replace(/,/g, "");
+      const carPrice = parseInt(numericValue, 10);
 
       const initiateData = {
         store_id: "dream6690c55671a8c",
         store_passwd: "dream6690c55671a8c@ssl",
-        total_amount: paymentInfo.amount,
+        total_amount: carPrice,
         currency: "BDT",
         tran_id: trxId,
         success_url: "http://localhost:5000/success-payment",
@@ -474,12 +484,16 @@ async function run() {
       });
 
       const saveData = {
-        cus_name: "Dummy",
-        paymentId: trxId,
-        amount: paymentInfo.amount,
-        status: "Pending",
+        transactionId: trxId,
+        date: new Date(),
+        email: email,
+        photo: photo,
+        status: "processing",
+        paymentStatus: "Pending",
+        customerInfo,
+        car,
       };
-      const save = await SSLPayments.insertOne(saveData);
+      const save = await carSoldCollection.insertOne(saveData);
 
       console.log(response);
 
@@ -498,15 +512,15 @@ async function run() {
 
       // update the database
       const query = {
-        paymentId: successData.tran_id,
+        transactionId: successData.tran_id,
       };
       const update = {
         $set: {
-          status: "Success",
+          paymentStatus: "Success",
         },
       };
 
-      const updateData = await SSLPayments.updateOne(query, update);
+      const updateData = await carSoldCollection.updateOne(query, update);
 
       console.log("Success Data: ", successData);
       console.log("Update Data: ", updateData);
