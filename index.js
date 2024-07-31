@@ -42,7 +42,6 @@ const verifyToken = async (req, res, next) => {
 };
 
 // ---------------------------------------------------------------------------------------------
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.fmvmv30.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -156,7 +155,7 @@ async function run() {
     app.get("/cars", async (req, res) => {
       const result = await carCollection.find().toArray();
       res.send(result);
-      console.log(result);
+      // console.log(result);
     });
     // Get brand new car
     app.get("/cars/brandNew", async (req, res) => {
@@ -213,7 +212,6 @@ async function run() {
         res.status(500).send({ error: error.message });
       }
     });
-
     // ========================= Moderator API========================================
 
     app.post("/addCar", async (req, res) => {
@@ -359,6 +357,12 @@ async function run() {
         res.status(500).send({ message: "Update failed", error });
       }
     });
+    app.get("/userTotalSalesCarByEmail", async (req, res) => {
+      const email = req.query.email;
+      const query = { "car.sellerData.sellerEmail": email };
+      const result = await carSoldCollection.find(query).toArray();
+      res.send(result);
+    });
     // ==========================Admin APi=======================================
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
@@ -390,7 +394,7 @@ async function run() {
     app.patch("/updateUserCarStatus/:id", async (req, res) => {
       const id = req.params.id;
       const { status } = req.body;
-      console.log(id, status);
+      // console.log(id, status);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
@@ -400,7 +404,42 @@ async function run() {
       const result = await secondHandCarCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-    // =========================Payment related api (Stripe Payment)========================================
+    app.patch("/userAddedCar/comment/:id", async (req, res) => {
+      const { id } = req.params;
+      const { content } = req.body;
+
+      console.log(id, content);
+      try {
+        const ObjectId = require("mongodb").ObjectId;
+        const carId = new ObjectId(id);
+
+        const result = await secondHandCarCollection.updateOne(
+          { _id: carId },
+          { $push: { comments: content } }
+        );
+
+        if (result.modifiedCount === 0) {
+          return res
+            .status(404)
+            .send({ message: "Contest not found or comment not added" });
+        }
+
+        res.send({ modifiedCount: result.modifiedCount });
+      } catch (error) {
+        res.status(500).send({ message: error.message });
+      }
+    });
+    app.delete("/removeComment/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await secondHandCarCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+        },
+        { $unset: { comments: "" } }
+      );
+      res.send(result);
+    });
+    // ========================= Payment related api (Stripe Payment)========================================
     // Generate client secret for stripe payment
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
@@ -413,6 +452,7 @@ async function run() {
       });
       res.send({ clientSecret: client_secret });
     });
+
     //save bought cars info to the database
     app.post("/soldCars", async (req, res) => {
       const soldCar = req.body;
@@ -422,7 +462,6 @@ async function run() {
     // =================================================================
 
     // =========================Payment related api ( SSL Commerce Payment)========================================
-
     app.post("/create-payment", async (req, res) => {
       const paymentInfo = req.body;
       const trxId = new ObjectId().toString();
@@ -503,7 +542,6 @@ async function run() {
         });
       }
     });
-
     app.post("/success-payment", async (req, res) => {
       const successData = req.body;
       if (successData.status !== "VALID") {
